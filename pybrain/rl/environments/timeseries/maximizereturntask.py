@@ -12,14 +12,10 @@ class MaximizeReturnTask(Task):
         # TODO: also, MUST check whether the reward is the cumulative reward or the one-step reward (it is currently the cumulative reward)
         # TODO: make sure that the returns array is always the first column of ts
         t=self.env.time
-
-        latestAction=self.env.action
+        latestAction=self.env.action[0]
         previousAction = self.env.actionHistory[t-1]
-        ret=self.env.ts[0,t-1]
+        ret=self.env.ts[t,0]
         reward=ret*sign(latestAction)
-        #if latestAction != previousAction:
-         #   reward +=
-
 
         #actionHist=self.env.actionHistory
         #rets=self.env.ts[0,0:t+1].tolist()[0]
@@ -27,6 +23,9 @@ class MaximizeReturnTask(Task):
         #retsMade=map(fun,rets,actionHist)
         #reward=sum(retsMade)
         return reward
+
+    def reset(self):
+        self
 
 class DifferentialSharpeRatioTask(Task):
 

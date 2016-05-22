@@ -2,7 +2,11 @@ __author__ = 'Sam Stern, samuelostern@gmail.com'
 
 from random import gauss
 from pybrain.rl.environments.environment import Environment
-from numpy import array, matrix, append
+from numpy import array, matrix, empty, append
+from math import log
+import pandas as pd
+import csv
+import time
 
 
 class TSEnvironment(Environment):
@@ -11,7 +15,7 @@ class TSEnvironment(Environment):
         """Initialize environment randomly"""
         self.time=0
         self.action=[]
-        self.actionHistory=[]
+        self.actionHistory=array([])
         self.ts=None
         #self.tsLength=tsLength
         #self.ts = TSEnvironment.importSnP()
@@ -24,7 +28,8 @@ class TSEnvironment(Environment):
             :rtype: by default, this is assumed to be a numpy array of doubles
         """
         t=self.time
-        return self.ts[0,t]
+        currentState=self.ts[t,:]
+        return currentState
 
     def performAction(self, action):
         """ perform an action on the world that changes it's internal state (maybe
@@ -33,7 +38,7 @@ class TSEnvironment(Environment):
             :type action: by default, this is assumed to be a numpy array of doubles
         """
         self.action=action
-        self.actionHistory.append(action)
+        self.actionHistory=append(self.actionHistory,action)
         self.time+=1
 
     def reset(self):
@@ -48,6 +53,31 @@ class TSEnvironment(Environment):
     def outdim(self):
         return len(self.sensors)
 
+# loads in data from csv file
+class MarketEnvironment(TSEnvironment):
+
+    def __init__(self):
+        super(MarketEnvironment,self).__init__()
+        self.dataFrame=self.loadData() #input data as pandas dataframe
+        self.ts=self.dataFrame.as_matrix() #input data as matrix
+        #self.ts=self.dataMat[:,0] #just the returns timeseries
+
+    def loadData(self):
+        #read in csv file where the dates are the keys
+        data=pd.read_csv('data/modelInputs.csv',parse_dates=['DATE'],index_col='DATE')
+
+        #insert a percenage returns column
+        data['RETURNS']=data['S&P 500 COMPOSITE - PRICE INDEX'].pct_change()*100
+
+        #make sure data is complete
+        data=data.dropna()
+        cols=data.columns.tolist()
+        cols=cols[-1:]+cols[:-1]
+        data=data[cols]
+        data=data.drop('S&P 500 COMPOSITE - PRICE INDEX',1) #don't want the price
+        return data
+
+
 
 # Special case of AR(1) process
 
@@ -61,22 +91,23 @@ class AR1Environment(TSEnvironment):
 
     @staticmethod
     def __createTS(tsLength,rho):
-        ts = matrix([0.0 for x in range(tsLength)])
+        ts=empty([tsLength,1])
+        #ts = array([0.0 for x in range(tsLength)])
         for i in range(1,tsLength):
-            ts.put([0,i],rho*ts[0,i-1]+gauss(0,0.2))
+            ts.put(i,rho*ts[i-1]+gauss(0.0,0.2))
         return ts
 
 # Special case of SnP returns Environment
 
-class SnPEnvironment(TSEnvironment):
+class DailySnPEnvironment(TSEnvironment):
     def __init__(self):
-        super(SnPEnvironment,self).__init__()
-        self.ts=SnPEnvironment.__importSnP()
+        super(DailySnPEnvironment,self).__init__()
+        self.ts=DailySnPEnvironment.__importSnP()
 
     @staticmethod
     def __importSnP():
         import csv
-        with open('SnP_data.csv','r') as f:
+        with open('pybrain/rl/environments/timeseries/SnP_data.csv','r') as f:
             data = [row for row in csv.reader(f.read().splitlines())]
         price=[]
         [price.append(data[i][4]) for i in range(1,len(data))]
@@ -84,3 +115,33 @@ class SnPEnvironment(TSEnvironment):
         price=map(float,price)
         rets=matrix([(price[i]-price[i-1])/price[i-1] for i in range(len(price))])
         return rets
+
+class MonthlySnPEnvironment(TSEnvironment):
+    def __init__(self):
+        super(MonthlySnPEnvironment,self).__init__()
+        ts, dates=MonthlySnPEnvironment.__importSnP()
+        self.ts=ts
+        self.dates=dates
+
+    @staticmethod
+    def __importSnP():
+        with open('SnP_data.csv','r') as f:
+            data = [row for row in csv.reader(f.read().splitlines())]
+
+            data.pop(0) #get rid of the labels
+        dates=[]
+        price=[]
+        dailyLogRets=[]
+        monthlyLogRets=[0.0]
+        j=0
+        for i in range(len(data)):
+            price.insert(0,float(data[i][4]))
+            dates.insert(0,time.strptime(data[i][0],"%d/%m/%y"))
+            if i>0:
+                dailyLogRets.insert(0,log(price[1])-log(price[0]))
+                if dates[0][1]==dates[1][1]: #if the months are the same
+                    monthlyLogRets[0]+=dailyLogRets[0]
+                else:
+                    monthlyLogRets.insert(0,0)
+        return matrix(monthlyLogRets), dates
+
