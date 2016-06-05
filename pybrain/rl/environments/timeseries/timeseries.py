@@ -28,7 +28,7 @@ class TSEnvironment(Environment):
             :rtype: by default, this is assumed to be a numpy array of doubles
         """
         t=self.time
-        currentState=self.ts[t,:]
+        currentState=self.worldState[t,:]
         return currentState
 
     def performAction(self, action):
@@ -39,6 +39,8 @@ class TSEnvironment(Environment):
         """
         self.action=action
         self.actionHistory=append(self.actionHistory,action)
+
+    def incrementTime(self):
         self.time+=1
 
     def reset(self):
@@ -56,25 +58,39 @@ class TSEnvironment(Environment):
 # loads in data from csv file
 class MarketEnvironment(TSEnvironment):
 
-    def __init__(self):
+    def __init__(self,*args):
         super(MarketEnvironment,self).__init__()
-        self.dataFrame=self.loadData() #input data as pandas dataframe
-        self.ts=self.dataFrame.as_matrix() #input data as matrix
+        if len(args)==0:
+            inData=self.loadData() #input data as pandas dataframe
+            print(type(inData))
+        elif len(args)==1:
+            inData=args[0]
+            print(type(inData))
+        else:
+            print('something went wrong. The market environment expects at most one argement')
+        self.ts=inData['RETURNS'].shift(-1).as_matrix()
+        self.worldState=self.createWorldState(inData)
+        pass
         #self.ts=self.dataMat[:,0] #just the returns timeseries
+
+    def createWorldState(self,inData):
+        # when making a decision at time t, only use data as recent as t-1
+        state=inData.shift().ix[1:]
+        return state.as_matrix()
 
     def loadData(self):
         #read in csv file where the dates are the keys
         data=pd.read_csv('data/modelInputs.csv',parse_dates=['DATE'],index_col='DATE')
 
         #insert a percenage returns column
-        data['RETURNS']=data['S&P 500 COMPOSITE - PRICE INDEX'].pct_change()*100
+        data['RETURNS']=data['S&P PRICE'].pct_change()
 
         #make sure data is complete
         data=data.dropna()
         cols=data.columns.tolist()
         cols=cols[-1:]+cols[:-1]
         data=data[cols]
-        data=data.drop('S&P 500 COMPOSITE - PRICE INDEX',1) #don't want the price
+        data=data.drop('S&P PRICE',1) #don't want the price
         return data
 
 
@@ -88,13 +104,16 @@ class AR1Environment(TSEnvironment):
         self.tsLength=tsLength
         self.rho=0.99 #order of autoregression
         self.ts=AR1Environment.__createTS(tsLength,self.rho)
+        self.worldState=self.ts[:-1]
+        self.ts=self.ts[1:]
 
     @staticmethod
     def __createTS(tsLength,rho):
-        ts=empty([tsLength,1])
+        ts=[0 for i in range(tsLength)]
         #ts = array([0.0 for x in range(tsLength)])
         for i in range(1,tsLength):
-            ts.put(i,rho*ts[i-1]+gauss(0.0,0.2))
+            ts[i]=rho*ts[i-1]+gauss(0.0,0.2)
+        ts=array(ts)
         return ts
 
 # Special case of SnP returns Environment

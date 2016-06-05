@@ -4,24 +4,24 @@ __author__ = 'Sam Stern, samuelostern@gmail.com'
 
 from pybrain.rl.environments.task import Task
 from numpy import sign
+from math import log
 
 class MaximizeReturnTask(Task):
 
     def getReward(self):
         # TODO: make sure to check how to combine the returns (sum or product) depending on whether the timeseries is given in price, return or log returns
         # TODO: also, MUST check whether the reward is the cumulative reward or the one-step reward (it is currently the cumulative reward)
-        # TODO: make sure that the returns array is always the first column of ts
+        # TODO: make sure that the returns array is always the first column of ts. EDIT
         t=self.env.time
+        delta=0.4
         latestAction=self.env.action[0]
         previousAction = self.env.actionHistory[t-1]
-        ret=self.env.ts[t,0]
-        reward=ret*sign(latestAction)
-
-        #actionHist=self.env.actionHistory
-        #rets=self.env.ts[0,0:t+1].tolist()[0]
-        #fun = lambda x,y :x*y
-        #retsMade=map(fun,rets,actionHist)
-        #reward=sum(retsMade)
+        cost=delta*abs(sign(latestAction)-sign(previousAction))
+        ret=self.env.ts[t]
+        reward=ret*sign(latestAction)-cost
+        #reward=ret*sign(latestAction)
+        #reward=sum([log(1+(x/100))*sign(latestAction) for x in ret])#*sign(latestAction)
+        self.env.incrementTime()
         return reward
 
     def reset(self):

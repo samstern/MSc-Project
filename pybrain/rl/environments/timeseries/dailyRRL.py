@@ -6,11 +6,14 @@ from pybrain.structure import LinearLayer, TanhLayer, BiasUnit
 from pybrain.structure import FullConnection
 from pybrain.rl.agents import LearningAgent
 from pybrain.rl.experiments import ContinuousExperiment
-from matplotlib import pyplot
+import matplotlib.pyplot as plt
+from math import log
+from numpy import cumsum, sign
+
 
 env = MarketEnvironment()
 task = MaximizeReturnTask(env)
-numIn=len(env.dataFrame.columns)
+numIn=min(env.worldState.shape)
 
 net=RecurrentNetwork()
 net.addInputModule(BiasUnit(name='bias'))
@@ -20,14 +23,21 @@ net.addInputModule(LinearLayer(numIn,name='in'))
 net.addConnection(FullConnection(net['in'],net['out'],name='c1'))
 net.addConnection((FullConnection(net['bias'],net['out'],name='c2')))
 net.sortModules()
-learner = RRL(numIn+2) # ENAC() #Q_LinFA(2,1)
+#net._setParameters([-0.1749362, 2.10162725, 0.10726541, 1.67949447, -1.51793343, 2.01329702, 1.57673461])
+
+ts=env.ts
+learner = RRL(numIn+2,ts) # ENAC() #Q_LinFA(2,1)
 agent = LearningAgent(net,learner)
 exp = ContinuousExperiment(task,agent)
-ts=env.ts[:,0]
+
 exp.doInteractionsAndLearn(10000)
 print(net._params)
 actionHist=(env.actionHistory)
-print(actionHist)
-pyplot.plot(ts)
-pyplot.plot(actionHist)
-pyplot.show()
+
+fig, ax1 = plt.subplots()
+ax2=ax1.twinx()
+
+ax1.plot(cumsum([log(1+x) for x in ts]))
+ax1.plot(cumsum([log(1+(x*sign(y))) for x,y in zip(ts,actionHist)]),'g')
+ax2.plot(actionHist,'r')
+plt.show()
