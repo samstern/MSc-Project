@@ -15,7 +15,7 @@ class TSEnvironment(Environment):
         """Initialize environment randomly"""
         self.time=0
         self.action=[]
-        self.actionHistory=array([])
+        self.actionHistory=array([0])
         self.ts=None
         #self.tsLength=tsLength
         #self.ts = TSEnvironment.importSnP()
@@ -28,7 +28,7 @@ class TSEnvironment(Environment):
             :rtype: by default, this is assumed to be a numpy array of doubles
         """
         t=self.time
-        currentState=self.worldState[t,:]
+        currentState=self.worldState[t]
         return currentState
 
     def performAction(self, action):
@@ -104,7 +104,7 @@ class AR1Environment(TSEnvironment):
         self.tsLength=tsLength
         self.rho=0.99 #order of autoregression
         self.ts=AR1Environment.__createTS(tsLength,self.rho)
-        self.worldState=self.ts[:-1]
+        self.worldState=[array(self.ts[i]) for i in range(len(self.ts))]
         self.ts=self.ts[1:]
 
     @staticmethod
@@ -113,7 +113,6 @@ class AR1Environment(TSEnvironment):
         #ts = array([0.0 for x in range(tsLength)])
         for i in range(1,tsLength):
             ts[i]=rho*ts[i-1]+gauss(0.0,0.2)
-        ts=array(ts)
         return ts
 
 # Special case of SnP returns Environment

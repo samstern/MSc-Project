@@ -26,32 +26,37 @@ def main():
     net.addConnection(FullConnection(net['in'],net['out'],name='c1'))
     net.addConnection((FullConnection(net['bias'],net['out'],name='c2')))
     net.sortModules()
-    #net._setParameters([1.0, 0.0, 100, 2.0]) for eta=0.1
-    #net._setParameters([0.5, 0.0, 1.0, 0.0])
+    net._setParameters([0.0, 0.00, 1.7, 0.0]) #for eta=0.1
+    #net._setParameters([0.245, -0.176, -1.637, -0.484])
+    #net._setParameters([0.1, 0.01, 1.0, 0.0])
     #[ 1.53246823 -1.35962024 -0.75628095 -1.11956953]
+    #[ 0.52724847 -1.85248054 -0.48313707  1.36831025]
     ts=env.ts
     learner = RRL(numIn+2,ts) # ENAC() #Q_LinFA(2,1)
     agent = LearningAgent(net,learner)
     exp = ContinuousExperiment(task,agent)
 
     print(net._params)
-    exp.doInteractionsAndLearn(12000)
+    exp.doInteractionsAndLearn(len(ts)-1)
     print(net._params)
-    actionHist=(env.actionHistory)
 
+
+    actionHist=(env.actionHistory)
+    #outData['log rets']=DataFrame(cumsum([log(1+x) for x in inData['RETURNS']]))
     fig, ax1 = plt.subplots()
     ax2=ax1.twinx()
 
-    ax1.plot(cumsum([log(1+x) for x in ts]))
-    ax1.plot(cumsum([log(1+(x*sign(y))) for x,y in zip(ts,actionHist)]),'g')
-    ax2.plot(actionHist,'r')
+    ax1.plot(sign(actionHist),'r')
+    ax2.plot(cumsum([log(1+x) for x in ts]))
+    ax2.plot(cumsum([log(1+(x*sign(y))) for x,y in zip(ts,actionHist)]),'g')
     plt.show()
 
 def createDataset():
     data=read_csv('data/modelInputs.csv',parse_dates=['DATE'],index_col='DATE')
     data['RETURNS']=data['S&P PRICE'].pct_change()
     rets=DataFrame(data['RETURNS'])
-    rets['MA10']=fun.sampleMovingAverage(rets,50)
+    rets['MA10']=fun.sampleMovingAverage(rets,100)
+    #rets['VAR10']=fun.movingVariance(rets['RETURNS'],30)
     rets=rets.dropna()
     return rets
 
