@@ -15,61 +15,24 @@ class MaximizeReturnTask(Task):
         t=self.env.time
         if t==10:
             pass
-        delta=0.004
+        delta=0.005
         latestAction=self.env.action[0]
         previousAction = self.env.actionHistory[-2]
         cost=delta*abs(sign(latestAction)-sign(previousAction))
         #ret=sum([log(1+self.env.ts[i]) for i in range(t,t+30)])
         ret=self.env.ts[t]
-        reward=ret*sign(latestAction)-cost
+        #reward=ret*sign(latestAction)-cost
         #reward=ret*sign(latestAction)
         #reward=sum([log(1+(x/100))*sign(latestAction) for x in ret])#*sign(latestAction)
+        reward=(1+(previousAction*ret))*(1-cost)-1
         self.env.incrementTime()
+
+
         return reward
 
     def reset(self):
         self
 
-class DifferentialSharpeRatioTask(Task):
-
-    """
-    Differential Sharpe Ratio as presented in J. Moody and L. Wu (1997). The reward is the first order term
-    in the expansion of a moving average Sharpe ratio. The first order(/derivative) is used as it gives the marginal
-    utility of taking an action
-    """
-
-    def __init__(self,env):
-        super(DifferentialSharpeRatioTask,self).__init__(env)
-        self.A=0#self.env.ts[0,0]
-        self.B=0.01#self.env.ts[0,0]**2
-
-    def getReward(self):
-        a_t_Minus1=self.A
-        b_t_Minus1=self.B
-
-        t=self.env.time
-        lastAction=self.env.action
-        ts_ret=self.env.ts[0,t]
-        r_t=ts_ret*lastAction
-        #actionHist=self.env.actionHistory
-        #dailyRets=self.env.ts[0,0:t-1].tolist()[0]
-        #fun = lambda x,y :x*y
-        #retsMade=map(fun,dailyRets,actionHist)
-        #r_t=sum(retsMade)
-
-        delA=r_t-a_t_Minus1
-        delB=(r_t**2)-b_t_Minus1
-
-        numeratorD=(b_t_Minus1*delA)-0.5*(a_t_Minus1*delB)
-        denominatorD=(b_t_Minus1-(a_t_Minus1**2))**(3./2)
-        d=numeratorD/denominatorD
-
-        #update moments
-        epsilon=0.01 # smaller epsilon makes it less inclined to trade
-        self.A+=epsilon*delA
-        self.B+=epsilon*delB
-
-        return d
 
 class NeuneierRewardTask(Task):
     """

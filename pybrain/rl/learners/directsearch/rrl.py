@@ -12,13 +12,13 @@ class RRL(DirectSearchLearner, DataSetLearner, ExploringLearner):
         self.num_features=numParameters #TODO: don't have this hardcoded
         self.A=0.0 #moving average returns
         self.B=0.1 #moving average std
-        self.delta=0.004 #transaction cost
-        self.eta = 0.1#0.470534 #moving average decay parameter
+        self.delta=0.005 #transaction cost
+        self.eta = 0.5#0.470534 #moving average decay parameter
         self.mu = 1.0 # invested capital
         self.rf = 0.0 #risk free rate
-        self.stepSize=0.01
-        self.stepF=0.000001
-        self.F = [0.0] # last periods output
+        self.stepSize=0.005
+        self.stepF=0.0001
+        self.F = [-1.0] # last periods output
         self.dFt_dTheta=[0.0 for i in range(numParameters)]
         self.paramUpdateThreshold=0.01 #when to stop ascending the gradient
         #self.explorer=EpsilonGreedyExplorer()
@@ -50,10 +50,8 @@ class RRL(DirectSearchLearner, DataSetLearner, ExploringLearner):
 
         gradient=self.calculateGradient(R_t,phi,r_t)
         for i in range(len(self.thetas)):
-            if (i==3):
-                self.thetas[i]=self.thetas[i]+self.stepF*gradient[i]
-            else:
-                self.thetas[i]=self.thetas[i]+self.stepSize*gradient[i]
+            self.thetas[i]=self.thetas[i]+self.stepSize*gradient[i]
+
 
         self.module._setParameters(self.thetas)
 
@@ -81,8 +79,10 @@ class RRL(DirectSearchLearner, DataSetLearner, ExploringLearner):
         #do the parts that are constant across parameters outside of the loop
         dU_dR=(self.B-(self.A*R_t))/((self.B-(self.A**2))**(3.0/2))
         dTanh_dThetaphi=(1-tanh(thetaPhi)**2)
-        dR_dFt=-self.mu*self.delta*sign(sign(self.F[-1])-sign(self.F[-2]))
-        dR_dFtMin1=self.mu*(r_t-self.rf)+dR_dFt*(F_coef*dTanh_dThetaphi-1)
+        #dR_dFt=-self.mu*self.delta*sign(sign(self.F[-1])-sign(self.F[-2]))
+        dR_dFt=-self.delta*(1+self.F[-2]*r_t)*sign(self.F[-1]-self.F[-2])
+        #dR_dFtMin1=self.mu*(r_t-self.rf)+dR_dFt*(F_coef*dTanh_dThetaphi-1)
+        dR_dFtMin1=r_t*(1-self.delta*abs(self.F[-1]-self.F[-2]))+self.delta*(1+self.F[-2]*r_t)*sign(self.F[-1]-self.F[-2])
 
         # finding the new dFt_dTheta for each parameter sequentially
         for i in range(len(self.thetas)):

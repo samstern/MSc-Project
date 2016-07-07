@@ -15,7 +15,7 @@ class TSEnvironment(Environment):
         """Initialize environment randomly"""
         self.time=0
         self.action=[]
-        self.actionHistory=array([0])
+        self.actionHistory=array([-1.0])
         self.ts=None
         #self.tsLength=tsLength
         #self.ts = TSEnvironment.importSnP()
@@ -80,17 +80,17 @@ class MarketEnvironment(TSEnvironment):
 
     def loadData(self):
         #read in csv file where the dates are the keys
-        data=pd.read_csv('data/modelInputs.csv',parse_dates=['DATE'],index_col='DATE')
+        data=pd.read_csv('data/data1.csv',parse_dates=['DATE'],index_col='DATE')
 
         #insert a percenage returns column
-        data['RETURNS']=data['S&P PRICE'].pct_change()
+        data['RETURNS']=data['Price'].diff()#pct_change()
 
         #make sure data is complete
         data=data.dropna()
         cols=data.columns.tolist()
         cols=cols[-1:]+cols[:-1]
         data=data[cols]
-        data=data.drop('S&P PRICE',1) #don't want the price
+        data=data.drop('Price',1) #don't want the price
         return data
 
 
