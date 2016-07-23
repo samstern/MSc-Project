@@ -3,7 +3,7 @@ __author__ = 'Sam Stern, samuelostern@gmail.com'
 from random import gauss
 from pybrain.rl.environments.environment import Environment
 from numpy import array, matrix, empty, append
-from math import log
+from math import log, exp
 import pandas as pd
 import csv
 import time
@@ -17,9 +17,6 @@ class TSEnvironment(Environment):
         self.action=[]
         self.actionHistory=array([-1.0])
         self.ts=None
-        #self.tsLength=tsLength
-        #self.ts = TSEnvironment.importSnP()
-        #self.ts = TSEnvironment.__createTS(tsLength, 0.9)
 
     def getSensors(self):
         """ the currently visible state of the world (the observation may be
@@ -43,9 +40,11 @@ class TSEnvironment(Environment):
     def incrementTime(self):
         self.time+=1
 
+
     def reset(self):
         """set time back to the start"""
         self.time=0
+        self.actionHistory=array([-1.0])
 
     @property
     def indim(self):
@@ -68,7 +67,8 @@ class MarketEnvironment(TSEnvironment):
             print(type(inData))
         else:
             print('something went wrong. The market environment expects at most one argement')
-        self.ts=inData['RETURNS'].shift(-1).as_matrix()
+        #self.ts=inData['RETURNS'].shift(-1).as_matrix()
+        self.ts=inData['RETURNS'].as_matrix()
         self.worldState=self.createWorldState(inData)
         pass
         #self.ts=self.dataMat[:,0] #just the returns timeseries
@@ -93,7 +93,54 @@ class MarketEnvironment(TSEnvironment):
         data=data.drop('Price',1) #don't want the price
         return data
 
+# Special case of random walk with autoregressive unit root
+class RWEnvironment(TSEnvironment):
+    def __init__(self,tsLength):
+        super(RWEnvironment,self).__init__()
+        self.tsLength=tsLength
+        self.alpha=0.9
+        self.k=3.0
+        self.n=10
+        self.reset()
+        pass
 
+    def reset(self):
+        super(RWEnvironment,self).reset()
+        tsLength=self.tsLength
+        self.betas=RWEnvironment._createBetaSerits(self.tsLength,self.alpha)
+        self.logPS=RWEnvironment._createLogPS(tsLength,self.betas,self.k)
+        self.ts=RWEnvironment._createTS(tsLength,self.logPS)
+        self.worldState=array(RWEnvironment._createWorldState(tsLength,self.ts,self.n))
+        self.ts=array(self.ts[self.n:])
+
+    @staticmethod
+    def _createTS(tsLength,ps):
+        R=max(ps)-min(ps)
+        z=[exp(ps[i]/R) for i in range(tsLength)]
+        ts=[100*((z[i]/z[i-1])-1) for i in range(1,tsLength)]
+        return ts
+
+    @staticmethod
+    def _createLogPS(tsLength,betas,k): #log price series
+        ts=[0 for i in range(tsLength)]
+        ts[0]=gauss(0.0,1.0)
+        for i in range(1,tsLength):
+            ts[i]=ts[i-1]+betas[i-1]+k*gauss(0,1)
+        return ts
+
+    @staticmethod
+    def _createBetaSerits(tsLength,alpha):
+        ts=[0 for i in range(tsLength)]
+        for i in range(1,tsLength):
+            ts[i]=alpha*ts[i-1]+gauss(0,1)
+        return ts
+
+    @staticmethod
+    def _createWorldState(tsLength,ts,n):
+        state=[[0 for i in range(n)] for i in range(tsLength-n)]
+        for i in range(tsLength-n):
+            state[i]=ts[i:i+n]
+        return state
 
 # Special case of AR(1) process
 

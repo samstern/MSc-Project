@@ -13,9 +13,7 @@ class MaximizeReturnTask(Task):
         # TODO: also, MUST check whether the reward is the cumulative reward or the one-step reward (it is currently the cumulative reward)
         # TODO: make sure that the returns array is always the first column of ts. EDIT
         t=self.env.time
-        if t==10:
-            pass
-        delta=0.005
+        delta=0.025
         latestAction=self.env.action[0]
         previousAction = self.env.actionHistory[-2]
         cost=delta*abs(sign(latestAction)-sign(previousAction))
