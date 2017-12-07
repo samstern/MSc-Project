@@ -1,2 +1,2 @@
-# An online recurrent reinforcement learner for asset allocation using PyBrain
+*An online recurrent reinforcement learner for asset allocation using PyBrain*
 
